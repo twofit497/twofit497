@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Controle Financeiro - TwoFit</title>
+  <style>
+    :root{
+      --tf-primary:#3AAE5A;
+      --tf-dark:#1E7A3A;
+      --tf-light:#E9F7EF;
+      --tf-accent:#FFD166;
+      --bg:#f7f7f8;
+      --card:#ffffff;
+      --muted:#6b7280;
+    }
+    body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; padding:18px; background:var(--bg); color:#111}
+    h1{font-size:20px; margin:0 0 12px;color:var(--tf-dark)}
+    .tabs{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap}
+    .tab{padding:8px 12px; background:var(--card); border-radius:8px; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.04); user-select:none; color:var(--tf-dark)}
+    .tab.active{background:var(--tf-dark);color:#fff}
+    .card{background:var(--card);padding:14px;border-radius:10px;box-shadow:0 4px 10px rgba(11,15,20,0.03);}
+    label{display:block;margin-top:8px;font-size:13px}
+    input, select, textarea{width:100%;padding:8px;margin-top:6px;border:1px solid #e6e6e6;border-radius:6px;background:#fff}
+    .row{display:flex;gap:12px}
+    .col{flex:1}
+    .actions{display:flex;gap:8px;margin-top:12px}
+    button{padding:8px 12px;border-radius:8px;border:0;background:var(--tf-dark);color:white;cursor:pointer}
+    button.ghost{background:#eee;color:var(--tf-dark)}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th, td{padding:8px;border-bottom:1px solid #f1f1f1;text-align:left;font-size:13px}
+    .small{font-size:12px;color:var(--muted)}
+    .kpi{display:flex;gap:12px;margin-top:12px}
+    .kpi .item{background:var(--card);padding:12px;border-radius:8px;flex:1;box-shadow:0 2px 6px rgba(0,0,0,0.04)}
+    .kpi .value{font-size:18px;font-weight:700;color:var(--tf-dark)}
+    .grid{overflow:auto; max-height:360px}
+    .pill{display:inline-block;padding:6px 8px;border-radius:999px;background:var(--tf-light);color:var(--tf-dark);font-weight:600}
+    .balance{background:linear-gradient(90deg,var(--tf-primary),var(--tf-dark));color:white}
+    select.small-select{padding:6px;font-size:13px}
+  </style>
+</head>
+<body>
+  <h1>Controle Financeiro - TwoFit</h1>
+
+  <div class="dashboard" id="dashboard">
+    <div class="card" id="dashRevenue">
+      <div class="small">Entradas (mês)</div>
+      <div class="kpi"><div class="item"><div class="value" id="dashRevenueVal">R$ 0,00</div><div class="small">Receitas totais</div></div></div>
+    </div>
+    <div class="card" id="dashExpenses">
+      <div class="small">Saídas (mês)</div>
+      <div class="kpi"><div class="item"><div class="value" id="dashExpensesVal">R$ 0,00</div><div class="small">Despesas totais</div></div></div>
+    </div>
+    <div class="card balance" id="dashBalance">
+      <div class="small">Saldo (mês)</div>
+      <div class="kpi"><div class="item"><div class="value" id="dashBalanceVal">R$ 0,00</div><div class="small">Receita - Despesa</div></div></div>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <div class="tab" role="tab" data-tab="single" tabindex="0">Lançamento Individual</div>
+    <div class="tab" role="tab" data-tab="batch" tabindex="0">Inserção em Lote</div>
+    <div class="tab" role="tab" data-tab="categories" tabindex="0">Categorias</div>
+    <div class="tab" role="tab" data-tab="list" tabindex="0">Lista de Transações</div>
+    <div class="tab" role="tab" data-tab="dre" tabindex="0">DRE Mensal</div>
+  </div>
+
+  <div id="single" class="card" hidden>
+    <strong>Lançamento Individual</strong>
+    <div style="margin-top:8px" class="row">
+      <div class="col">
+        <label>Data</label>
+        <input type="date" id="txDate" />
+      </div>
+      <div class="col">
+        <label>Tipo</label>
+        <select id="txType">
+          <option value="entrada">Entrada</option>
+          <option value="saida">Saída</option>
+        </select>
+      </div>
+    </div>
+
+    <label>Categoria</label>
+    <select id="txCategory"></select>
+
+    <label>Classificação para DRE</label>
+    <select id="txClass">
+      <option value="receita">Receita</option>
+      <option value="cmv">CMV</option>
+      <option value="despesa_operacional">Desp. Operacional</option>
+      <option value="outras_despesas">Outras Despesas</option>
+    </select>
+
+    <label>Valor (use ponto para decimais)</label>
+    <input id="txAmount" placeholder="ex: 32.50" />
+
+    <label>Descrição (opcional)</label>
+    <textarea id="txDesc" rows="2" placeholder="ex: Venda marmita fit"></textarea>
+
+    <div class="actions">
+      <button id="saveTx">Salvar Lançamento</button>
+      <button id="clearForm" class="ghost">Limpar</button>
+    </div>
+
+    <div class="foot muted">Dica: categorias podem ser personalizadas na aba "Categorias".</div>
+  </div>
+
+  <div id="batch" class="card" style="display:none" hidden>
+    <strong>Inserção em Lote (Planilha)</strong>
+    <div class="muted" style="margin-top:6px">Edite linhas no grid abaixo. Para cada linha escolha a Categoria, Tipo (Entrada/Saída) e Classificação. Em "Modo de ação" escolha salvar individualmente ou agrupar.</div>
+
+    <div style="margin-top:8px" class="row">
+      <div class="col">
+        <label>Modo de ação</label>
+        <select id="batchMode">
+          <option value="individual">Salvar como lançamentos individuais</option>
+          <option value="group">Agrupar como 1 lançamento (lote)</option>
+        </select>
+      </div>
+      <div class="col">
+        <label>Categoria padrão (se agrupar)</label>
+        <select id="batchCategory"></select>
+      </div>
+    </div>
+
+    <div style="margin-top:8px" class="card mini" id="gridArea">
+      <div class="flex-center" style="justify-content:space-between"><strong>Grid (edite as linhas)</strong><span class="pill">Colunas: Data, Tipo, Categoria, Classificação, Valor, Descrição</span></div>
+      <div class="grid" id="gridContainer" style="margin-top:8px;">
+        <table id="gridTable"><thead><tr><th><input type="checkbox" id="selectAll"/></th><th>Data</th><th>Tipo</th><th>Categoria</th><th>Classificação</th><th>Valor</th><th>Descrição</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="actions" style="margin-top:8px">
+        <button id="addRow">+ Linha</button>
+        <button id="delSelected" class="ghost">Remover Selecionadas</button>
+        <button id="applyBatch">Aplicar Ação</button>
+      </div>
+    </div>
+
+    <div id="csvPreviewArea2" style="margin-top:12px"></div>
+  </div>
+
+  <div id="categories" class="card" style="display:none" hidden>
+    <strong>Gerenciar Categorias</strong>
+    <div class="muted" style="margin-top:6px">Adicione, edite ou remova categorias que aparecem nos lançamentos.</div>
+    <div style="margin-top:8px" class="row">
+      <div class="col">
+        <label>Nova categoria</label>
+        <input id="newCat" placeholder="ex: Vendas - Marmitas" />
+      </div>
+      <div class="col">
+        <label>&nbsp;</label>
+        <div class="actions"><button id="addCat">Adicionar Categoria</button><button id="resetCats" class="ghost">Restaurar Padrões</button></div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px"><table id="catTable"><thead><tr><th>Categoria</th><th></th></tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <div id="list" class="card" style="display:none" hidden>
+    <strong>Transações Registradas</strong>
+    <div style="margin-top:8px" class="row">
+      <div class="col">
+        <label>Filtrar por mês</label>
+        <input type="month" id="filterMonth" />
+      </div>
+      <div class="col">
+        <label>&nbsp;</label>
+        <div style="display:flex;gap:8px"><button id="applyFilter">Aplicar</button><button id="resetFilter" class="ghost">Limpar</button></div>
+      </div>
+    </div>
+
+    <table id="txTable">
+      <thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Classificação</th><th>Valor</th><th>Descrição</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <div style="margin-top:8px" class="actions">
+      <button id="exportCsv">Exportar CSV</button>
+      <button id="clearAll" class="ghost danger-btn">Apagar Todos (cuidado)</button>
+    </div>
+  </div>
+
+  <div id="dre" class="card" style="display:none" hidden>
+    <strong>DRE Mensal (Resumo)</strong>
+    <div style="margin-top:8px" class="row">
+      <div class="col">
+        <label>Selecione mês</label>
+        <input type="month" id="dreMonth" />
+      </div>
+      <div class="col">
+        <label>&nbsp;</label>
+        <div style="display:flex;gap:8px"><button id="calcDre">Gerar DRE</button><button id="printDre" class="ghost">Imprimir/Exportar</button></div>
+      </div>
+    </div>
+
+    <div id="dreResult" style="margin-top:12px"></div>
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const KEY = 'twofit_finance_v1';
+  const CATKEY = 'twofit_finance_cats_v1';
+
+  function showTab(tabName){
+    ['single','batch','categories','list','dre'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(!el) return;
+      if(id===tabName){ el.hidden = false; el.style.display = 'block'; }
+      else { el.hidden = true; el.style.display = 'none'; }
+    });
+    document.querySelectorAll('.tab').forEach(t=>{ t.classList.toggle('active', t.dataset.tab===tabName); });
+    if(tabName==='list') renderTable();
+    if(tabName==='categories') renderCats();
+  }
+
+  showTab('single');
+
+  document.querySelectorAll('.tab').forEach(tab=>{
+    tab.addEventListener('click', ()=> showTab(tab.dataset.tab));
+    tab.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' ') { e.preventDefault(); showTab(tab.dataset.tab); } });
+  });
+
+  function load(){ try{ return JSON.parse(localStorage.getItem(KEY) || '[]') }catch(e){return []} }
+  function save(data){ localStorage.setItem(KEY, JSON.stringify(data)) }
+  function loadCats(){ try{ return JSON.parse(localStorage.getItem(CATKEY) || '[]') }catch(e){return []} }
+  function saveCats(c){ localStorage.setItem(CATKEY, JSON.stringify(c)) }
+
+  const defaultCats = ['Vendas','Compras - Mercearia','Salários','Aluguel','Energia','Marketing','Serviços','Outros'];
+  if(!localStorage.getItem(CATKEY)) saveCats(defaultCats);
+
+  function populateCategorySelects(){ const cats = loadCats(); const selects = document.querySelectorAll('#txCategory,#batchCategory'); selects.forEach(s=>{ s.innerHTML = ''; cats.forEach(c=>{ const opt = document.createElement('option'); opt.value=c; opt.textContent=c; s.appendChild(opt); }); }); }
+  populateCategorySelects();
+
+  const today = new Date().toISOString().slice(0,10);
+  const txDateEl = document.getElementById('txDate'); if(txDateEl) txDateEl.value = today;
+
+  document.getElementById('saveTx').addEventListener('click', ()=>{
+    const date = document.getElementById('txDate').value;
+    const type = document.getElementById('txType').value;
+    const category = document.getElementById('txCategory').value;
+    const cls = document.getElementById('txClass').value;
+    const amount = parseFloat((document.getElementById('txAmount').value || '').replace(',','.'));
+    const desc = document.getElementById('txDesc').value.trim();
+    if(!date || isNaN(amount)) return alert('Preencha data e valor corretamente.');
+    const tx = {id:Date.now(), date, type, category, class:cls, amount: +amount.toFixed(2), desc };
+    const data = load(); data.push(tx); save(data);
+    alert('Lançamento salvo.');
+    clearForm();
+    renderTable();
+    updateDashboard();
+  });
+  document.getElementById('clearForm').addEventListener('click', clearForm);
+  function clearForm(){ if(document.getElementById('txCategory')) document.getElementById('txCategory').value=''; if(document.getElementById('txAmount')) document.getElementById('txAmount').value=''; if(document.getElementById('txDesc')) document.getElementById('txDesc').value=''; if(document.getElementById('txDate')) document.getElementById('txDate').value=today; }
+
+  function renderTable(filterMonth){
+    const tbody = document.querySelector('#txTable tbody'); if(!tbody) return; tbody.innerHTML='';
+    const data = load().sort((a,b)=> new Date(b.date)-new Date(a.date));
+    let filtered = data;
+    if(filterMonth){ const [y,m] = filterMonth.split('-'); filtered = data.filter(t=>{ const d = new Date(t.date); return d.getFullYear()==+y && (d.getMonth()+1)==+m }); }
+    filtered.forEach(t=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${t.date}</td><td>${t.type}</td><td>${t.category}</td><td>${t.class}</td><td>R$ ${Number(t.amount).toFixed(2).replace('.',',')}</td><td>${t.desc||''}</td><td><button data-id="${t.id}" class="ghost">❌</button></td>`;
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll('button').forEach(btn=>btn.addEventListener('click', ()=>{
+      if(!confirm('Remover este lançamento?')) return;
+      const id = +btn.dataset.id; const arr = load().filter(x=>x.id!==id); save(arr); renderTable(filterMonth); updateDashboard();
+    }));
+
+    updateDashboard(filterMonth);
+  }
+  document.getElementById('applyFilter').addEventListener('click', ()=>{ const m = document.getElementById('filterMonth').value; renderTable(m); });
+  document.getElementById('resetFilter').addEventListener('click', ()=>{ document.getElementById('filterMonth').value=''; renderTable(); });
+
+  document.getElementById('exportCsv').addEventListener('click', ()=>{
+    const data = load(); if(!data.length) return alert('Nenhum registro para exportar');
+    const header = ['date','type','category','class','amount','description'];
+    const csv = [header.join(',')].concat(data.map(r=>[r.date,r.type,`"${r.category.replace(/"/g,'""')}"`,r.class,r.amount,`"${(r.desc||'').replace(/"/g,'""')}"`].join(','))).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='transactions.csv'; a.click(); URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('clearAll').addEventListener('click', ()=>{
+    if(confirm('Apagar todos os lançamentos? Esta ação não pode ser desfeita.')){ localStorage.removeItem(KEY); renderTable(); updateDashboard(); alert('Todos os registros foram apagados.'); }
+  });
+
+  function renderCats(){ const tbody = document.querySelector('#catTable tbody'); if(!tbody) return; tbody.innerHTML=''; const cats = loadCats(); cats.forEach((c,i)=>{ const tr = document.createElement('tr'); tr.innerHTML = `<td><input class="mini" data-i="${i}" value="${c}" /></td><td><button data-i="${i}" class="ghost">Remover</button></td>`; tbody.appendChild(tr); });
+    tbody.querySelectorAll('button').forEach(btn=>btn.addEventListener('click', ()=>{ const i = +btn.dataset.i; const arr = loadCats(); arr.splice(i,1); saveCats(arr); populateCategorySelects(); renderCats(); }));
+    tbody.querySelectorAll('input').forEach(inp=>inp.addEventListener('change', ()=>{ const i = +inp.dataset.i; const arr = loadCats(); arr[i] = inp.value.trim()||'Categoria'; saveCats(arr); populateCategorySelects(); }));
+  }
+  document.getElementById('addCat').addEventListener('click', ()=>{ const v = document.getElementById('newCat').value.trim(); if(!v) return alert('Digite o nome da categoria'); const arr = loadCats(); arr.push(v); saveCats(arr); document.getElementById('newCat').value=''; populateCategorySelects(); renderCats(); });
+  document.getElementById('resetCats').addEventListener('click', ()=>{ if(confirm('Restaurar categorias padrão?')){ saveCats(defaultCats); populateCategorySelects(); renderCats(); } });
+  renderCats();
+
+  const gridBody = document.querySelector('#gridTable tbody');
+  function createSelect(options, className, selected){
+    const sel = document.createElement('select'); sel.className = className + ' small-select';
+    options.forEach(opt=>{ const o = document.createElement('option'); o.value = opt.value; o.textContent = opt.label; if(selected && selected===opt.value) o.selected=true; sel.appendChild(o); });
+    return sel;
+  }
+  function addGridRow(row){
+    const id = Date.now()+Math.random();
+    const tr = document.createElement('tr'); tr.dataset.id = id;
+    const tdChk = document.createElement('td'); tdChk.innerHTML = '<input type="checkbox" class="rowSel"/>';
+    const tdDate = document.createElement('td'); tdDate.contentEditable = true; tdDate.className='c-date'; tdDate.innerText = row?.date||today;
+    const tdType = document.createElement('td');
+    const typeOpts = [{value:'entrada',label:'Entrada'},{value:'saida',label:'Saída'}];
+    const selType = createSelect(typeOpts,'c-type', row?.type||'entrada'); tdType.appendChild(selType);
+    const tdCat = document.createElement('td');
+    const cats = loadCats(); const catOpts = cats.map(c=>({value:c,label:c}));
+    const selCat = createSelect(catOpts,'c-cat', row?.category||cats[0]); tdCat.appendChild(selCat);
+    const tdClass = document.createElement('td');
+    const classOpts = [{value:'receita',label:'Receita'},{value:'cmv',label:'CMV'},{value:'despesa_operacional',label:'Desp. Operacional'},{value:'outras_despesas',label:'Outras Despesas'}];
+    const selClass = createSelect(classOpts,'c-class', row?.class||'receita'); tdClass.appendChild(selClass);
+    const tdAmount = document.createElement('td'); tdAmount.contentEditable = true; tdAmount.className='c-amount'; tdAmount.innerText = row?.amount!=null?Number(row.amount).toFixed(2):'0.00';
+    const tdDesc = document.createElement('td'); tdDesc.contentEditable = true; tdDesc.className='c-desc'; tdDesc.innerText = row?.desc||'';
+    tr.appendChild(tdChk); tr.appendChild(tdDate); tr.appendChild(tdType); tr.appendChild(tdCat); tr.appendChild(tdClass); tr.appendChild(tdAmount); tr.appendChild(tdDesc);
+    gridBody.appendChild(tr);
+  }
+  document.getElementById('addRow').addEventListener('click', ()=> addGridRow());
+  document.getElementById('delSelected').addEventListener('click', ()=>{
+    const sels = Array.from(document.querySelectorAll('.rowSel')).filter(c=>c.checked).map(c=>c.closest('tr'));
+    if(!sels.length) return alert('Nenhuma linha selecionada');
+    if(!confirm('Remover linhas selecionadas?')) return;
+    sels.forEach(r=>r.remove());
+  });
+  document.getElementById('selectAll').addEventListener('change', (e)=>{ document.querySelectorAll('.rowSel').forEach(c=>c.checked = e.target.checked); });
+
+  document.getElementById('applyBatch').addEventListener('click', ()=>{
+    const rows = Array.from(gridBody.querySelectorAll('tr')).map(tr=>{
+      return {
+        date: tr.querySelector('.c-date').innerText.trim(),
+        type: tr.querySelector('.c-type').value,
+        category: tr.querySelector('.c-cat').value,
+        class: tr.querySelector('.c-class').value,
+        amount: parseFloat(tr.querySelector('.c-amount').innerText.replace(',','.'))||0,
+        desc: tr.querySelector('.c-desc').innerText.trim()
+      }
+    }).filter(r=>r.date && !isNaN(r.amount));
+    if(!rows.length) return alert('Nenhuma linha válida no grid');
+    const mode = document.getElementById('batchMode').value;
+    const data = load();
+    if(mode==='individual'){
+      rows.forEach(r=>{ data.push({id:Date.now()+Math.random(), date:r.date, type:r.type, category:r.category, class:r.class, amount:+r.amount.toFixed(2), desc:r.desc}); });
+      save(data); alert(rows.length + ' lançamentos individuais salvos.');
+    } else {
+      const cat = document.getElementById('batchCategory').value || loadCats()[0];
+      const total = rows.reduce((s,r)=> s + (r.type==='saida' ? -r.amount : r.amount), 0);
+      const txType = total>=0 ? 'entrada' : 'saida';
+      const amount = Math.abs(total);
+      const cls = rows[0].class || 'despesa_operacional';
+      const desc = 'Lote gerado a partir do grid ('+rows.length+' linhas)';
+      data.push({id:Date.now()+Math.random(), date: rows[0].date, type: txType, category: cat, class: cls, amount:+amount.toFixed(2), desc});
+      save(data); alert('Lote salvo como 1 lançamento. Valor total R$ ' + amount.toFixed(2));
+    }
+    renderTable();
+    updateDashboard();
+  });
+
+  document.getElementById('clearGrid').addEventListener('click', ()=>{ if(confirm('Limpar grid?')) gridBody.innerHTML=''; });
+
+  function updateDashboard(month){
+    const data = load();
+    let filtered = data;
+    if(month){ const [y,m] = month.split('-'); filtered = data.filter(t=>{ const d = new Date(t.date); return d.getFullYear()==+y && (d.getMonth()+1)==+m }); }
+    const entradas = filtered.filter(t=>t.type==='entrada').reduce((s,t)=> s + t.amount,0);
+    const saidas = filtered.filter(t=>t.type==='saida').reduce((s,t)=> s + t.amount,0);
+    const balance = entradas - saidas;
+    document.getElementById('dashRevenueVal').innerText = 'R$ ' + format(entradas);
+    document.getElementById('dashExpensesVal').innerText = 'R$ ' + format(saidas);
+    const balEl = document.getElementById('dashBalanceVal'); balEl.innerText = 'R$ ' + format(balance);
+    const parent = document.getElementById('dashBalance'); if(balance>=0) parent.style.background = 'linear-gradient(90deg,var(--tf-primary),var(--tf-dark))'; else parent.style.background = 'linear-gradient(90deg,#ff7466,#d6453a)';
+  }
+
+  document.getElementById('calcDre').addEventListener('click', ()=>{
+    const ym = document.getElementById('dreMonth').value; if(!ym) return alert('Escolha um mês.');
+    const [y,m] = ym.split('-');
+    const data = load().filter(t=>{ const d = new Date(t.date); return d.getFullYear()==+y && (d.getMonth()+1)==+m; });
+    if(!data.length) return alert('Nenhum lançamento no mês selecionado.');
+    const sum = {receita:0, cmv:0, despesa_operacional:0, outras_despesas:0};
+    data.forEach(t=>{
+      const v = Number(t.amount)||0;
+      if(t.class==='receita') sum.receita += v * (t.type==='entrada'?1:-1);
+      else if(t.class==='cmv') sum.cmv += v * (t.type==='saida'?1:-1);
+      else if(t.class==='despesa_operacional') sum.despesa_operacional += v * (t.type==='saida'?1:-1);
+      else sum.outras_despesas += v * (t.type==='saida'?1:-1);
+    });
+    const receita = sum.receita; const cmv = sum.cmv; const lucro_bruto = receita - cmv; const despesas = sum.despesa_operacional + sum.outras_despesas; const lucro_operacional = lucro_bruto - despesas;
+    const html = [`<div class="kpi"><div class="item"><strong>Receita</strong><div>R$ ${format(receita)}</div></div><div class="item"><strong>CMV</strong><div>R$ ${format(cmv)}</div></div><div class="item"><strong>Lucro Bruto</strong><div>R$ ${format(lucro_bruto)}</div></div></div>`,
+      `<div style="margin-top:10px" class="kpi"><div class="item"><strong>Despesas Operacionais</strong><div>R$ ${format(sum.despesa_operacional)}</div></div><div class="item"><strong>Outras Despesas</strong><div>R$ ${format(sum.outras_despesas)}</div></div><div class="item"><strong>Lucro Operacional</strong><div>R$ ${format(lucro_operacional)}</div></div></div>`,
+      `<div style="margin-top:12px"><strong>Detalhamento (lançamentos no mês)</strong><table><thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Class</th><th>Valor</th><th>Desc</th></tr></thead><tbody>`];
+    data.forEach(t=> html.push(`<tr><td>${t.date}</td><td>${t.type}</td><td>${t.category}</td><td>${t.class}</td><td>R$ ${Number(t.amount).toFixed(2).replace('.',',')}</td><td>${t.desc||''}</td></tr>`));
+    html.push('</tbody></table></div>');
+    document.getElementById('dreResult').innerHTML = html.join('');
+  });
+
+  document.getElementById('printDre').addEventListener('click', ()=>{
+    const el = document.getElementById('dreResult'); if(!el.innerHTML) return alert('Gere a DRE primeiro.');
+    const w = window.open('','_blank'); w.document.write('<title>DRE</title>'); w.document.write('<style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{padding:6px;border-bottom:1px solid #ddd}</style>'); w.document.write(el.innerHTML); w.document.close(); w.print();
+  });
+
+  function format(n){ return Number(n||0).toFixed(2).replace('.',','); }
+
+  populateCategorySelects();
+  addGridRow();
+  renderTable();
+  updateDashboard();
+});
+</script>
+</body>
+</html>
